@@ -4,7 +4,7 @@ This is a small, vibe-coded stand-alone tool to quickly check the contents of
 a `workspace.sqlite` as created from the Confluence migration tool. It spawns
 a web server (default port `8765`) and renders data as clickable SVG diagrams.
 
-> *Please note the disclaimer in the [main README](../README.md)"
+> *Please note the disclaimer in the [main README](../README.md)*
 
 ## Usage
 

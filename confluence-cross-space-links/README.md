@@ -4,7 +4,7 @@ This small Bash script connects to your Data Center Confluence instance and
 fetches a list of all cross-space links between the spaces. The list is then
 provided as Excel-compatible CSV file.
 
-> *Please note the disclaimer in the [main README](../README.md)"
+> *Please note the disclaimer in the [main README](../README.md)*
 
 This tool was not tested against a live Confluence version! Please review the
 code yourself before using it!

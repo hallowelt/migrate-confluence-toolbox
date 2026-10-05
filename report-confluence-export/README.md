@@ -3,7 +3,7 @@
 This is a small, vibe-coded stand-alone tool to quickly check the contents of
 a `entities.xml` file as it is provided in Confluence exports.
 
-> *Please note the disclaimer in the [main README](../README.md)"
+> *Please note the disclaimer in the [main README](../README.md)*
 
 ## Usage
 

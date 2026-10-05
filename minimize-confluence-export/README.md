@@ -4,7 +4,7 @@ This is a small, vibe-coded stand-alone tool to remove data not related to
 the currently exported space in a `entities.xml` file as it is provided in
 Confluence exports.
 
-> *Please note the disclaimer in the [main README](../README.md)"
+> *Please note the disclaimer in the [main README](../README.md)*
 
 > **Attention!** This tool will remove data! It is well possible that it
 > will remove too much! Use it only as last resort. In most cases, the
