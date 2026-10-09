@@ -49,7 +49,7 @@
   <xsl:template match="object[@class='ConfluenceUserImpl']/property[@name='name' or @name='lowerName']">
     <xsl:copy>
       <xsl:apply-templates select="@*"/>
-      <xsl:value-of select="php:functionString('fakeUsername', ., @name)" />
+      <xsl:value-of select="php:functionString('fakeUsername', ., @name, ../property[@name='name'])" />
     </xsl:copy>
   </xsl:template>
 
@@ -83,7 +83,7 @@
       ">
     <xsl:copy>
       <xsl:apply-templates select="@*"/>
-      <xsl:value-of select="php:functionString('fakeTitle', ., @name)" />
+      <xsl:value-of select="php:functionString('fakeTitle', ., @name, ../property[@name='title'])" />
     </xsl:copy>
   </xsl:template>
 

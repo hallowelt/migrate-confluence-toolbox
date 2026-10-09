@@ -61,17 +61,17 @@ function fakeDate( $actualDate ) {
  * create a stable fake user name
  * 
  * Stable means, that the same input should provide the same fake output.
- * @todo name and lowerName will not match
  */
-function fakeUsername( $actualName, $type = 'name' ) {
+function fakeUsername( $actualName, $type = 'name', $casedName = null ) {
     static $seenNames = [];
-    if ( ! array_key_exists( $actualName, $seenNames ) ) {
-        $seenNames[ $actualName ] = sprintf(
+    $relevantName = ( $type === 'lowerName' && $casedName !== null ) ? $casedName : $actualName;
+    if ( ! array_key_exists( $relevantName, $seenNames ) ) {
+        $seenNames[ $relevantName ] = sprintf(
             '%s %s',
             FIRST_NAMES[array_rand( FIRST_NAMES, 1 )],
             LAST_NAMES[array_rand( LAST_NAMES, 1 )]);
     }
-    $fakeName = $seenNames[ $actualName ];
+    $fakeName = $seenNames[ $relevantName ];
     if ( $type === 'lowerName' ) {
         $fakeName = strtolower( $fakeName );
     }
@@ -92,20 +92,20 @@ function fakeEmail( $actualEmail ) {
  * fetch a TITLE_COMPONENTS entry.
  * 
  * The same original title will always result in the same fake title.
- * @todo title and lowerTitle will not match
  */
-function fakeTitle( $actualTitle, $type = 'title' ) {
-    $hash = md5( $actualTitle );
+function fakeTitle( $actualTitle, $type = 'title', $casedTitle = null ) {
+    $relevantTitle = ( $type === 'lowerTitle' && $casedTitle !== null ) ? $casedTitle : $actualTitle;
+    $hash = md5( $relevantTitle );
     $newTitleComponents = [];
     foreach ( str_split( $hash, 2 ) as $hex ) {
         $index = hexdec( $hex );
         $newTitleComponents[] = TITLE_COMPONENTS[ $index ];
         /* keep short titles short */
-        if ( strlen( $actualTitle ) < 30 && count( $newTitleComponents ) > 3 ) {
+        if ( strlen( $relevantTitle ) < 30 && count( $newTitleComponents ) > 3 ) {
             break;
-        } elseif ( strlen( $actualTitle ) < 40 && count( $newTitleComponents ) > 4 ) {
+        } elseif ( strlen( $relevantTitle ) < 40 && count( $newTitleComponents ) > 4 ) {
             break;
-        } elseif ( strlen( $actualTitle ) < 50 && count( $newTitleComponents ) > 5 ) {
+        } elseif ( strlen( $relevantTitle ) < 50 && count( $newTitleComponents ) > 5 ) {
             break;
         }
     }
