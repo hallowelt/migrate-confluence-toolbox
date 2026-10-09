@@ -6,7 +6,7 @@ This is a stand-alone tool to anonymize the contents of an
 Sometimes, errors appear only in the context of the structure of
 a specific file. However, it is not possible to feed this file into
 some tools, especially AI-based ones, due to valid data protection
-converns.
+concerns.
 
 This program aids in anonymizing all identifyable data.
 
