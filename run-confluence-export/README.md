@@ -2,10 +2,6 @@
 
 `migrate.sh` runs the complete [migrate-confluence](https://github.com/hallowelt/migrate-confluence) pipeline in Docker: it builds the image, recreates a clean workspace, runs the `analyze`, `extract`, `convert` and `compose` steps, and optionally deploys the result into a BlueSpice installation.
 
-# Conventions
-
-
-
 ## Directory layout
 
 ```
