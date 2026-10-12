@@ -65,9 +65,8 @@ Examples:
 ## What the script does
 
 1. Loads `.env` and validates all paths and options before anything is changed.
-2. Requests sudo up front (only if needed), so a long migration never stalls on a password prompt at the end.
-3. Builds the image `bluespice/migrate-confluence:latest` from `CODE_DIR`.
-4. Recreates `<base-dir>/workspace`: deletes it if present and creates it empty, owned by the container user.
-5. Runs the pipeline steps in order: `analyze` → `extract` → `convert` → `compose`. The `--wikis` mapping is passed to `analyze` only; it is stored in the workspace database and used by the later steps automatically.
-6. Deploys `workspace/result` to `$TARGET_DIR/data/wiki/bluespice` if `TARGET_DIR` is set.
-7. Prints the total runtime.
+2. Builds the image `bluespice/migrate-confluence:latest` from `CODE_DIR`.
+3. Recreates `<base-dir>/workspace`: deletes it if present and creates it empty, owned by the container user.
+4. Runs the pipeline steps in order: `analyze` → `extract` → `convert` → `compose`. The `--wikis` mapping is passed to `analyze` only; it is stored in the workspace database and used by the later steps automatically.
+5. Deploys `workspace/result` to `$TARGET_DIR/data/wiki/bluespice` if `TARGET_DIR` is set.
+6. Prints the total runtime.
