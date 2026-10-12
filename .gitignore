@@ -1,0 +1,11 @@
+# Local settings (keep .env.sample tracked)
+.env
+!.env.sample
+
+# Editors / OS
+.idea/
+.vscode/
+*.swp
+*~
+.DS_Store
+Thumbs.db
