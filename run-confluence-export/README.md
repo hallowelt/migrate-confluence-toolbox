@@ -1,6 +1,6 @@
 # migrate.sh — Confluence → BlueSpice migration pipeline
 
-`migrate.sh` runs the complete [migrate-confluence](https://github.com/hallowelt/migrate-confluence) pipeline in Docker: it builds the image, recreates a clean workspace, runs the `analyze`, `extract`, `convert` and `compose` steps, and optionally deploys the result into a BlueSpice installation.
+`migrate.sh` runs the complete [migrate-confluence](https://github.com/hallowelt/migrate-confluence) pipeline in Docker: it pulls (or builds) the image, recreates a clean workspace, runs the `analyze`, `extract`, `convert` and `compose` steps, and optionally deploys the result into a BlueSpice installation.
 
 ## Directory layout
 
@@ -21,8 +21,10 @@ cp .env.sample .env
 
 | Variable       | Default        | Description |
 |----------------|----------------|-------------|
-| `CODE_DIR`     | `code`         | Docker build context (the migrate-confluence source). |
-| `TARGET_DIR`   | *(empty)*      | BlueSpice installation directory. If set, `workspace/result` is copied to `$TARGET_DIR/data/wiki/bluespice` after a successful run. If empty, deployment is skipped. |
+| `CODE_DIR`     | *(empty)*      | Optional Docker build context (the migrate-confluence source). If set, the image is built locally from it; if empty, the image is pulled. |
+| `DOCKER_IMAGE` | `bluespice/migrate-confluence` | Image name. |
+| `DOCKER_TAG`   | `latest`       | Image tag (ignored if `DOCKER_IMAGE` already contains a tag). |
+| `TARGET_DIR`   | *(empty)*      | Deployment directory (created if missing), e.g. `/opt/bluespice/data/wiki/bluespice`. If set, `workspace/result` is copied into it after a successful run. If empty, deployment is skipped. |
 | `WORKERS`      | `1`            | Parallel processes for `analyze`, `convert` and `compose`. Set to the number of CPU cores for best performance. |
 
 Relative paths in `.env` are resolved against the directory containing the `.env` file.
@@ -31,7 +33,7 @@ Example:
 
 ```bash
 CODE_DIR=../migrate-confluence
-TARGET_DIR=/opt/bluespice
+TARGET_DIR=/opt/bluespice/data/wiki/bluespice
 WORKERS=8
 ```
 
@@ -61,8 +63,8 @@ Examples:
 ## What the script does
 
 1. Loads `.env` and validates all paths and options before anything is changed.
-2. Builds the image `bluespice/migrate-confluence:latest` from `CODE_DIR`.
+2. Pulls `$DOCKER_IMAGE:$DOCKER_TAG` (default `bluespice/migrate-confluence:latest`), or builds it from `CODE_DIR` if that is set.
 3. Recreates `<base-dir>/workspace`: deletes it if present and creates it empty, owned by the container user.
 4. Runs the pipeline steps in order: `analyze` → `extract` → `convert` → `compose`. The `--wikis` mapping is passed to `analyze` only; it is stored in the workspace database and used by the later steps automatically.
-5. Deploys `workspace/result` to `$TARGET_DIR/data/wiki/bluespice` if `TARGET_DIR` is set.
+5. Deploys `workspace/result` to `$TARGET_DIR` if `TARGET_DIR` is set.
 6. Prints the total runtime.
