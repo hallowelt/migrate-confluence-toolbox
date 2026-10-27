@@ -7,16 +7,18 @@
 #   removed and created empty (owned by the container user, never by root).
 #
 # Settings read from .env (next to this script, or the file given in $ENV_FILE):
-#   CODE_DIR      Docker build context for the migration image (default: code).
+#   CODE_DIR      Optional Docker build context for the migration image. If set,
+#                 the image is built from these local files; if empty or unset,
+#                 the image is pulled from the registry instead.
 #                 Relative paths are resolved against the .env file's directory.
-#   TARGET_DIR    Optional BlueSpice installation directory. If set, after a
-#                 successful migration <base-dir>/workspace/result is copied to
-#                 $TARGET_DIR/$DEPLOY_PATH (via Docker). If empty or
+#   TARGET_DIR    Optional deployment directory (e.g. <bluespice>/data/wiki/bluespice).
+#                 If set, after a successful migration <base-dir>/workspace/result
+#                 is copied into it (via Docker). Created if missing. If empty or
 #                 unset, the deploy step is skipped.
-#   DEPLOY_PATH   Path below TARGET_DIR the result is copied to
-#                 (default: data/wiki/bluespice). Must be relative.
-#   DOCKER_IMAGE  Name/tag of the migration image that is built and run
-#                 (default: bluespice/migrate-confluence:latest).
+#   DOCKER_IMAGE  Name of the migration image that is pulled/built and run
+#                 (default: bluespice/migrate-confluence).
+#   DOCKER_TAG    Tag of the migration image (default: latest). Ignored if
+#                 DOCKER_IMAGE already contains a tag.
 #   WORKERS       Number of parallel processes for the analyze, convert and
 #                 compose steps (default: 1).
 #   DOCKER_USER   uid:gid the migration container runs as (default: current user).
@@ -57,10 +59,10 @@ else
   echo "Note: no .env file found at $ENV_FILE, using defaults." >&2
 fi
 
-CODE_DIR="${CODE_DIR:-code}"
+CODE_DIR="${CODE_DIR:-}"
 TARGET_DIR="${TARGET_DIR:-}"
-DEPLOY_PATH="${DEPLOY_PATH:-data/wiki/bluespice}"
-DOCKER_IMAGE="${DOCKER_IMAGE:-bluespice/migrate-confluence:latest}"
+DOCKER_IMAGE="${DOCKER_IMAGE:-bluespice/migrate-confluence}"
+DOCKER_TAG="${DOCKER_TAG:-latest}"
 WORKERS="${WORKERS:-1}"
 CONFIG=""
 WIKIS=""
@@ -133,34 +135,39 @@ BASE="$(cd "$1" && pwd)"
 WORKSPACE="$BASE/workspace"
 RESULT_DIR="$WORKSPACE/result"
 
-CODE_DIR="$(resolve_env_path "$CODE_DIR")"
-if [[ ! -d "$CODE_DIR" ]]; then
-  echo "Error: CODE_DIR not found: $CODE_DIR" >&2
-  exit 1
+if [[ -n "$CODE_DIR" ]]; then
+  CODE_DIR="$(resolve_env_path "$CODE_DIR")"
+  if [[ ! -d "$CODE_DIR" ]]; then
+    echo "Error: CODE_DIR not found: $CODE_DIR" >&2
+    exit 1
+  fi
+  CODE_DIR="$(cd "$CODE_DIR" && pwd)"
 fi
-CODE_DIR="$(cd "$CODE_DIR" && pwd)"
 
 TARGET=""
-DEPLOY_DIR=""
-# Normalise DEPLOY_PATH (strip leading/trailing slashes) and keep it inside TARGET_DIR.
-DEPLOY_PATH="${DEPLOY_PATH#/}"
-DEPLOY_PATH="${DEPLOY_PATH%/}"
-if [[ -z "$DEPLOY_PATH" || "/$DEPLOY_PATH/" == *"/../"* ]]; then
-  echo "Error: DEPLOY_PATH must be a non-empty relative path without '..': '$DEPLOY_PATH'" >&2
-  exit 1
-fi
 if [[ -z "$DOCKER_IMAGE" ]]; then
   echo "Error: DOCKER_IMAGE must not be empty." >&2
   exit 1
 fi
+# Append DOCKER_TAG unless DOCKER_IMAGE already carries a tag.
+if [[ "${DOCKER_IMAGE##*/}" != *:* ]]; then
+  if [[ -z "$DOCKER_TAG" ]]; then
+    echo "Error: DOCKER_TAG must not be empty." >&2
+    exit 1
+  fi
+  DOCKER_IMAGE="$DOCKER_IMAGE:$DOCKER_TAG"
+fi
 if [[ -n "$TARGET_DIR" ]]; then
   TARGET_DIR="$(resolve_env_path "$TARGET_DIR")"
-  if [[ ! -d "$TARGET_DIR" ]]; then
-    echo "Error: TARGET_DIR not found: $TARGET_DIR" >&2
+  if [[ -e "$TARGET_DIR" && ! -d "$TARGET_DIR" ]]; then
+    echo "Error: TARGET_DIR is not a directory: $TARGET_DIR" >&2
+    exit 1
+  fi
+  if ! mkdir -p "$TARGET_DIR"; then
+    echo "Error: cannot create TARGET_DIR: $TARGET_DIR" >&2
     exit 1
   fi
   TARGET="$(cd "$TARGET_DIR" && pwd)"
-  DEPLOY_DIR="$TARGET/$DEPLOY_PATH"
 fi
 
 if [[ -n "$CONFIG" ]]; then
@@ -223,8 +230,13 @@ docker_root() {
   docker run --rm --user 0:0 --entrypoint "" "$@"
 }
 
-echo "Building Docker image from: $CODE_DIR"
-docker build -t "$DOCKER_IMAGE" "$CODE_DIR"
+if [[ -n "$CODE_DIR" ]]; then
+  echo "Building Docker image from: $CODE_DIR"
+  docker build -t "$DOCKER_IMAGE" "$CODE_DIR"
+else
+  echo "Pulling Docker image: $DOCKER_IMAGE"
+  docker pull "$DOCKER_IMAGE"
+fi
 
 # Recreate the workspace: delete if present, then create it empty.
 if [[ -e "$WORKSPACE" ]]; then
@@ -243,11 +255,10 @@ if [[ "$CHOWN_NEEDED" -eq 1 ]]; then
 fi
 
 echo "Base:      $BASE"
-echo "Code:      $CODE_DIR"
+[[ -n "$CODE_DIR" ]] && echo "Code:      $CODE_DIR"
 echo "Image:     $DOCKER_IMAGE"
 if [[ -n "$TARGET" ]]; then
   echo "Target:    $TARGET"
-  echo "Deploy to: $DEPLOY_DIR"
 else
   echo "Target:    (none - deploy step will be skipped)"
 fi
@@ -307,12 +318,12 @@ if [[ ! -d "$RESULT_DIR" ]]; then
   exit 1
 fi
 if [[ -n "$TARGET" ]]; then
-  echo "Copying $RESULT_DIR -> $DEPLOY_DIR"
+  echo "Copying $RESULT_DIR -> $TARGET"
   docker_root \
     -v "$RESULT_DIR":/src:ro \
     -v "$TARGET":/target \
     "$DOCKER_IMAGE" \
-    sh -c 'mkdir -p "/target/$1" && cp -r /src/. "/target/$1"' sh "$DEPLOY_PATH"
+    cp -r /src/. /target/
 else
   echo "TARGET_DIR not set - skipping deployment."
 fi
@@ -325,7 +336,7 @@ echo ""
 echo "=========================================="
 echo " Migration complete."
 if [[ -n "$TARGET" ]]; then
-  echo " Deployed to: ${DEPLOY_DIR}"
+  echo " Deployed to: ${TARGET}"
 else
   echo " Result:      ${RESULT_DIR} (not deployed)"
 fi
