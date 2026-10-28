@@ -28,8 +28,8 @@ The tool uses XSLT and therefore needs the `php-xml` extension installed.
 
 ### IDs
 
-All IDs are exchanged for an MD5 hash of their value. This way associations keep
-intact, but the original value is hidden.
+All IDs are exchanged for an MD5 hash (converted into a decimal number) of their
+value. This way associations keep intact, but the original value is hidden.
 
 ### Timestamps
 
