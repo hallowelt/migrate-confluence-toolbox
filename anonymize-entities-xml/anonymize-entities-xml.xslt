@@ -28,7 +28,7 @@
     <xsl:copy>
       <xsl:apply-templates select="@*"/>
       <!-- hashing the ID keeps it unique and resolvable but unrecognizable -->
-      <xsl:value-of select="php:functionString('md5', .)" />
+      <xsl:value-of select="php:functionString('fakeId', .)" />
     </xsl:copy>
   </xsl:template>
 
@@ -65,7 +65,7 @@
       object[@class='Page' or @class='BlogPost' or @class='Attachment' or @class='Comment' or @class='SpaceDescription' or @class='CustomContentEntityObject']/property[@name='agentCreatorAaid' or @name='agentLastModifierAaid']">
     <xsl:copy>
       <xsl:apply-templates select="@*"/>
-      <xsl:value-of select="php:functionString('md5', .)" />
+      <xsl:value-of select="php:functionString('fakeId', .)" />
     </xsl:copy>
   </xsl:template>
 
