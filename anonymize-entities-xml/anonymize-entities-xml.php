@@ -123,23 +123,83 @@ function fakeTitle( $actualTitle, $type = 'title', $casedTitle = null ) {
     return $fakeTitle;
 }
 
+/* attributes that carry presentation/structure info and are kept; all others are dropped */
+const KEEP_ATTRIBUTES = [
+    'class', 'style', 'colspan', 'rowspan', 'start', 'type', 'local-id', 'ac:local-id', 'ac:macro-id',
+    'ac:name', 'ac:schema-version', 'ac:type', 'ac:layout', 'ac:align', 'ac:width', 'ac:original-width',
+    'ac:original-height', 'ac:custom-width', 'ac:breakout-mode', 'ac:breakout-width', 'ac:task-list-id',
+    'ac:emoji-shortname', 'ac:emoji-id', 'ac:emoji-fallback', 'ac:inline-comment',
+    'data-layout', 'data-table-width', 'data-highlight-colour', 'data-card-appearance',
+];
+/* macro parameters holding free text from the customer */
+const TEXT_PARAMETERS = [ 'title', 'url', 'name', 'label', 'labels', 'user', 'cql', 'query' ];
+
 /**
- * replace all body content
- * 
- * Empty body content remains empty. Content length is somewhat retained by choosing an appropriate
- * amount of lorem ipsum sentences.
- * 
- * @todo do that more cleverly and try to keep some macro info
+ * replace the words of $text with lorem ipsum words, keeping whitespace and word count
+ */
+function fakeText( $text ) {
+    static $words = null, $pos = 0;
+    $words ??= preg_split( '/\s+/', implode( ' ', LIPSUM ), -1, PREG_SPLIT_NO_EMPTY );
+    return preg_replace_callback( '/\S+/u', function () use ( $words, &$pos ) {
+        return $words[ $pos++ % count( $words ) ];
+    }, $text );
+}
+
+function fakeNode( DOM\Node $node, bool $keepText = false ) {
+    if ( $node instanceof DOM\Text ) {
+        if ( !$keepText ) {
+            $node->data = fakeText( $node->data );
+        }
+        return;
+    }
+    if ( $node instanceof DOM\Comment ) { // the HTML parser turns CDATA into comments
+        $node->data = preg_match( '/^\[CDATA\[(.*)\]\]$/s', $node->data, $m )
+            ? '[CDATA[' . fakeText( $m[1] ) . ']]' : '';
+        return;
+    }
+    if ( !( $node instanceof DOM\Element ) ) {
+        return;
+    }
+    foreach ( iterator_to_array( $node->attributes ) as $attr ) {
+        $name = $attr->nodeName;
+        if ( $name === 'ri:content-title' ) {
+            if ( !str_starts_with( $attr->value, '@' ) ) { // keep @self
+                $attr->value = fakeTitle( $attr->value );
+            }
+        } elseif ( $name === 'ri:space-key' || $name === 'ri:userkey' ) {
+            $attr->value = substr( md5( $attr->value ), 0, 8 );
+        } elseif ( $name === 'ri:filename' ) {
+            $attr->value = md5( $attr->value ) . '.' . pathinfo( $attr->value, PATHINFO_EXTENSION );
+        } elseif ( !in_array( $name, KEEP_ATTRIBUTES, true ) ) {
+            $node->removeAttributeNode( $attr );
+        }
+    }
+    $keepText = $keepText || ( strtolower( $node->nodeName ) === 'ac:parameter'
+        && !in_array( $node->getAttribute( 'ac:name' ), TEXT_PARAMETERS, true ) );
+    foreach ( iterator_to_array( $node->childNodes ) as $child ) {
+        fakeNode( $child, $keepText );
+    }
+}
+
+/**
+ * fake body content
+ *
+ * Keeps the element structure and presentational attributes, but replaces all text
+ * with lorem ipsum words and drops attributes with customer data (links, titles, file names, ...).
+ * Content that is not XHTML (e.g. wiki markup) is faked as plain text.
  */
 function fakeContent( $actualContent, $class = 'BodyContent' ) {
-    $dummy = '';
-    for ( $i = 0; $i < count( LIPSUM ); $i++ ) {
-        if ( strlen( $actualContent ) <= $i * 500 ) {
-            break;
-        }
-        $dummy .= '<p>' . LIPSUM[ $i ] . '</p> ';
+    if ( trim( $actualContent ) === '' ) {
+        return '';
     }
-    return $dummy;
+    $doc = DOM\HTMLDocument::createFromString(
+        '<body>' . $actualContent, LIBXML_NOERROR
+    );
+    foreach ( iterator_to_array( $doc->body->childNodes ) as $child ) {
+        fakeNode( $child );
+    }
+    $xml = preg_replace( '#^<body[^>]*>|</body>$#', '', $doc->saveXml( $doc->body ) );
+    return preg_replace( '/<!--(\[CDATA\[.*?\]\])-->/s', '<!$1>', $xml );
 }
 
 

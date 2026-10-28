@@ -49,9 +49,10 @@ E-mail addresses are replaced with `hash + "@example.com"`.
 Page titles are replaced in a stable way: based on a page title hash a number of
 random words is chosen.
 
-Body content is completely replaced with dummy text. Empty body content remains
-empty, then the length is chosen roughly on the input length.
-*To do:* find a way to bring macro information back. This is oftentimes a necessary part of what constitutes a bug.
+Body content keeps its element structure (macros, tables, layouts) and
+presentational attributes. Text nodes are replaced word by word with lorem
+ipsum; attributes with customer data (links, file names, ...) are dropped or
+hashed. Macro parameters are kept, except free-text ones (see `TEXT_PARAMETERS`).
 
 ### Space data
 
