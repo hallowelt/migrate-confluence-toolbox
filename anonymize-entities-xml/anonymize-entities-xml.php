@@ -174,11 +174,50 @@ function fakeNode( DOM\Node $node, bool $keepText = false ) {
             $node->removeAttributeNode( $attr );
         }
     }
+    if ( strtolower( $node->nodeName ) === 'ac:parameter' ) {
+        // the HTML parser nests unclosed roadmap parameters, so look at all ancestors
+        for ( $p = $node->parentNode; $p instanceof DOM\Element; $p = $p->parentNode ) {
+            if ( strtolower( $p->nodeName ) === 'ac:structured-macro' && $p->getAttribute( 'ac:name' ) === 'roadmap' ) {
+                $text = $node->textContent;
+                switch ( $node->getAttribute( 'ac:name' ) ) {
+                    case 'source': $node->textContent = fakeRoadmapSource( $text ); return;
+                    case 'title': $node->textContent = rawurlencode( fakeText( rawurldecode( $text ) ) ); return;
+                    case 'hash': $node->textContent = md5( $text ); return;
+                }
+                break;
+            }
+        }
+    }
     $keepText = $keepText || ( strtolower( $node->nodeName ) === 'ac:parameter'
         && !in_array( $node->getAttribute( 'ac:name' ), TEXT_PARAMETERS, true ) );
     foreach ( iterator_to_array( $node->childNodes ) as $child ) {
         fakeNode( $child, $keepText );
     }
+}
+
+/**
+ * fake the url-encoded JSON of a roadmap macro: replace free text, keep structure, colors, dates
+ */
+function fakeRoadmapSource( $encoded ) {
+    $fake = function ( &$data ) use ( &$fake ) {
+        foreach ( $data as $key => &$value ) {
+            if ( is_array( $value ) ) {
+                if ( $key === 'pageLink' ) {
+                    $value = array_filter( $value ) ? [ 'type' => 'page' ] : [];
+                } else {
+                    $fake( $value );
+                }
+            } elseif ( in_array( $key, [ 'title', 'description' ], true ) && $value !== '' ) {
+                $value = fakeText( $value );
+            }
+        }
+    };
+    $data = json_decode( rawurldecode( $encoded ), true );
+    if ( !is_array( $data ) ) {
+        return '';
+    }
+    $fake( $data );
+    return rawurlencode( json_encode( $data, JSON_UNESCAPED_SLASHES ) );
 }
 
 /**
